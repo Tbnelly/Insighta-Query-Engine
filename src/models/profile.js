@@ -1,9 +1,9 @@
 const mongoose = require('mongoose');
-const { v7: uuidv7 } = require('uuid');
+const { generateUUIDv7 } = require('../utils/uuidv7');
 
 const profileSchema = new mongoose.Schema(
   {
-    id: { type: String, default: uuidv7, unique: true },
+    id: { type: String, default: generateUUIDv7, unique: true },
     name: { type: String, required: true, unique: true, trim: true },
     gender: { type: String, required: true, enum: ['male', 'female'] },
     gender_probability: { type: Number, required: true, min: 0, max: 1 },
