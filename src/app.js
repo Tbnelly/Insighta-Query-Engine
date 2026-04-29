@@ -12,75 +12,60 @@ dotenv.config();
 
 const app = express();
 
-// ── Security ─────────────────────────────────────────────────────────────────
+// Security
 app.use(require('helmet')());
 
-// ── Request logger ────────────────────────────────────────────────────────────
+// Request logger
 app.use(require('./middleware/requestLogger'));
 
-// ── Body parsers ──────────────────────────────────────────────────────────────
+// Body parsers
 app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: false, limit: '10kb' }));
 app.use(cookieParser());
 
-// ── CORS ──────────────────────────────────────────────────────────────────────
+// CORS
 app.use(cors({
   origin:         env.clientUrl,
   credentials:    true,
   methods:        ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Version'],
 }));
 
-// ── DB connection middleware ──────────────────────────────────────────────────
-// On Vercel each request may hit a cold function — we connect here
-// so the DB is ready before any route handler runs.
+// DB connection per request (serverless compatible)
 app.use(async (req, res, next) => {
   try {
     await connectDB();
     next();
   } catch (err) {
-    return res.status(503).json({
-      status:  'error',
-      message: 'Database unavailable. Please try again.',
-    });
+    return res.status(503).json({ status: 'error', message: 'Database unavailable. Please try again.' });
   }
 });
 
 // ── Routes ────────────────────────────────────────────────────────────────────
-app.use('/api/v1/auth',     require('./routes/v1/auth'));
-app.use('/api/v1/profiles', require('./routes/v1/profiles'));
-app.use('/api/v1/export',   require('./routes/v1/export'));
+// Auth: /auth/* (no api prefix — TRD spec)
+app.use('/auth', require('./routes/auth'));
 
-// ── Health check ──────────────────────────────────────────────────────────────
+// API: /api/* (requires X-API-Version: 1 header)
+app.use('/api', require('./routes/api'));
+
+// Health check
 app.get('/', (req, res) => {
-  res.json({ status: 'success', message: 'Insighta Query Engine — Stage 3', version: 'v1' });
+  res.json({ status: 'success', message: 'Insighta Query Engine — Stage 3', version: '1' });
 });
 
-app.get('/debug', (req, res) => {
-  if (env.nodeEnv === 'production') return res.status(404).end();
-  res.json({
-    node_env:              env.nodeEnv,
-    mongo_uri_set:         !!env.mongoUri,
-    github_client_id_set:  !!env.github.clientId,
-    jwt_access_secret_set: !!env.jwt.accessSecret,
-  });
-});
-
-// ── 404 ───────────────────────────────────────────────────────────────────────
+// 404
 app.use((req, res) => {
   res.status(404).json({ status: 'error', message: 'Route not found' });
 });
 
-// ── Error handler ─────────────────────────────────────────────────────────────
+// Error handler
 app.use(require('./middleware/errorHandler'));
 
-// ── Local dev server ──────────────────────────────────────────────────────────
+// Local dev server
 if (env.nodeEnv !== 'production') {
   const PORT = env.port;
   connectDB().then(() => {
-    app.listen(PORT, () => {
-      console.log(`[app] Server running → http://localhost:${PORT}`);
-    });
+    app.listen(PORT, () => console.log(`[app] Server running → http://localhost:${PORT}`));
   });
 }
 

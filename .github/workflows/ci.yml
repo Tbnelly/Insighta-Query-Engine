@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Check syntax (build check)
+        run: |
+          node --check src/app.js
+          node --check src/config/env.js
+          node --check src/config/db.js
+          node --check src/controllers/authController.js
+          node --check src/controllers/profileController.js
+          node --check src/controllers/exportController.js
+          node --check src/middleware/authenticate.js
+          node --check src/middleware/authorize.js
+          node --check src/middleware/rateLimiter.js
+          node --check src/middleware/apiVersion.js
+          node --check src/middleware/errorHandler.js
+          node --check src/routes/auth.js
+          node --check src/routes/api.js
+          node --check src/services/tokenService.js
+          node --check src/services/githubOAuth.js
+          node --check src/services/queryBuilder.js
+          node --check src/services/exportService.js
+
+      - name: Verify required files exist
+        run: |
+          test -f src/app.js
+          test -f src/config/db.js
+          test -f src/config/env.js
+          test -f api/index.js
+          test -f vercel.json
+          echo "All required files present"
